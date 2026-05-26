@@ -1426,19 +1426,35 @@ function renderShopCards() {
       <p class="shop-item-desc" style="${descStyle}">${def.desc} (최대 ${def.maxLvl}레벨)</p>
       <div class="shop-item-info" style="${infoStyle}">
         <span>레벨: <span class="upgrade-level ${def.color}">0/${def.maxLvl}</span></span>
-        <span>비용: <span class="upgrade-cost neon-yellow">${def.baseCost}</span> 💾</span>
+        <span>비용: <span class="upgrade-cost neon-yellow">${def.baseCost.toLocaleString()}</span> 💾</span>
       </div>
-      <button class="btn btn-card btn-upgrade-buy" style="margin-bottom: 0; width: 100%; padding: 0.45rem 0.5rem; font-size: 0.85rem;">강화하기</button>
+      <div class="shop-item-buttons" style="display: flex; gap: 0.4rem;">
+        <button class="btn btn-card btn-upgrade-buy" style="margin-bottom: 0; flex: 1; padding: 0.45rem 0.5rem; font-size: 0.85rem;">강화하기</button>
+        <button class="btn btn-card btn-upgrade-max" style="margin-bottom: 0; flex: 1; padding: 0.45rem 0.5rem; font-size: 0.85rem;" title="현재 칩으로 살 수 있는 만큼 한번에 강화">⇪ 끝까지</button>
+      </div>
     `;
     grid.appendChild(card);
   }
   grid.dataset.rendered = '1';
 }
 
+// Compute the largest level we can afford for a given upgrade.
+function planMaxPurchase(def, currentLvl, chipsAvailable) {
+  let lvl = currentLvl;
+  let spent = 0;
+  while (lvl < def.maxLvl) {
+    const nextCost = def.baseCost * (lvl + 1);
+    if (spent + nextCost > chipsAvailable) break;
+    spent += nextCost;
+    lvl++;
+  }
+  return { levels: lvl - currentLvl, cost: spent, finalLvl: lvl };
+}
+
 function updateShopUI() {
   renderShopCards();
   const metaData = readMetaData();
-  shopChipsCount.textContent = metaData.chips;
+  shopChipsCount.textContent = metaData.chips.toLocaleString();
 
   for (const def of SHOP_DEFS) {
     const container = document.getElementById(`upgrade-${def.id}`);
@@ -1447,6 +1463,7 @@ function updateShopUI() {
     const levelEl = container.querySelector('.upgrade-level');
     const costEl = container.querySelector('.upgrade-cost');
     const btn = container.querySelector('.btn-upgrade-buy');
+    const maxBtn = container.querySelector('.btn-upgrade-max');
 
     levelEl.textContent = `${currentLvl}/${def.maxLvl}`;
 
@@ -1456,9 +1473,15 @@ function updateShopUI() {
       btn.disabled = true;
       btn.style.opacity = 0.5;
       btn.style.cursor = 'not-allowed';
+      if (maxBtn) {
+        maxBtn.disabled = true;
+        maxBtn.style.opacity = 0.4;
+        maxBtn.style.cursor = 'not-allowed';
+        maxBtn.textContent = 'MAX';
+      }
     } else {
       const nextCost = def.baseCost * (currentLvl + 1);
-      costEl.textContent = nextCost;
+      costEl.textContent = nextCost.toLocaleString();
       btn.textContent = '강화하기';
       btn.disabled = false;
       btn.style.opacity = 1;
@@ -1473,15 +1496,39 @@ function updateShopUI() {
         btn.style.background = '';
         btn.style.color = '';
       }
+
+      // Bulk-upgrade button: shows the achievable number of levels and total cost.
+      if (maxBtn) {
+        const plan = planMaxPurchase(def, currentLvl, metaData.chips);
+        if (plan.levels <= 0) {
+          maxBtn.disabled = true;
+          maxBtn.style.opacity = 0.4;
+          maxBtn.style.cursor = 'not-allowed';
+          maxBtn.textContent = '⇪ 끝까지';
+          maxBtn.style.borderColor = 'rgba(255,255,255,0.08)';
+          maxBtn.style.background = 'rgba(255,255,255,0.02)';
+          maxBtn.style.color = '#777777';
+        } else {
+          maxBtn.disabled = false;
+          maxBtn.style.opacity = 1;
+          maxBtn.style.cursor = 'pointer';
+          maxBtn.style.borderColor = '';
+          maxBtn.style.background = '';
+          maxBtn.style.color = '';
+          maxBtn.textContent = `⇪ +${plan.levels} (${plan.cost.toLocaleString()})`;
+        }
+      }
     }
   }
 }
 
-// Event delegation: single listener handles all dynamically rendered buy buttons.
+// Event delegation: single listener handles all dynamically rendered buy + bulk buttons.
 const shopGridEl = document.querySelector('#shop-screen .shop-grid');
 if (shopGridEl) {
   shopGridEl.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-upgrade-buy');
+    const buyBtn = e.target.closest('.btn-upgrade-buy');
+    const maxBtn = e.target.closest('.btn-upgrade-max');
+    const btn = buyBtn || maxBtn;
     if (!btn || btn.disabled) return;
     const card = btn.closest('.shop-item');
     if (!card) return;
@@ -1491,8 +1538,24 @@ if (shopGridEl) {
 
     const metaData = readMetaData();
     const currentLvl = metaData[def.id] || 0;
-    const cost = def.baseCost * (currentLvl + 1);
 
+    if (maxBtn) {
+      // Bulk purchase: spend until either max level or chips run out.
+      const plan = planMaxPurchase(def, currentLvl, metaData.chips);
+      if (plan.levels <= 0) {
+        Sound.playHeavyImpact();
+        return;
+      }
+      metaData.chips -= plan.cost;
+      metaData[def.id] = plan.finalLvl;
+      writeMetaData(metaData);
+      updateShopUI();
+      Sound.playUpgrade();
+      return;
+    }
+
+    // Single upgrade
+    const cost = def.baseCost * (currentLvl + 1);
     if (currentLvl < def.maxLvl && metaData.chips >= cost) {
       metaData.chips -= cost;
       metaData[def.id] = currentLvl + 1;
