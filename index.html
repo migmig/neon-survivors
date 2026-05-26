@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Survivors — Synthwave Bullet Heaven</title>
+  <!-- Google Fonts: Orbitron for titles, Outfit for normal texts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <!-- Background ambient particles -->
+  <div class="ambient-glow"></div>
+
+  <!-- Game container wrapping canvas & UI overlays -->
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- 1. HEADS UP DISPLAY (HUD) -->
+    <div id="hud" class="hidden">
+      <div class="hud-top">
+        <div class="hud-stats-left">
+          <div class="hud-stat-item">
+            <span class="hud-label">TIME</span>
+            <span id="hud-time" class="hud-value neon-blue">00:00</span>
+          </div>
+          <div class="hud-stat-item">
+            <span class="hud-label">KILLS</span>
+            <span id="hud-kills" class="hud-value neon-red">0</span>
+          </div>
+        </div>
+
+        <div class="hud-level-container">
+          <span class="hud-label">LEVEL</span>
+          <span id="hud-level" class="hud-level-value neon-green">1</span>
+        </div>
+
+        <div class="hud-stats-right">
+          <div class="hud-stat-item">
+            <span class="hud-label">HIGH SCORE</span>
+            <span id="hud-highscore" class="hud-value neon-yellow">0</span>
+          </div>
+          <div class="hud-stat-item">
+            <span class="hud-label">SCORE</span>
+            <span id="hud-score" class="hud-value neon-blue">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- XP Bar -->
+      <div class="xp-bar-container">
+        <div class="xp-bar-fill" id="xp-fill"></div>
+        <div class="xp-bar-text"><span id="xp-current">0</span> / <span id="xp-needed">100</span> XP</div>
+      </div>
+
+      <!-- HP Bar overlayed at the bottom or near the character. Let's place it at the HUD bottom left -->
+      <div class="hp-bar-container">
+        <div class="hp-bar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon neon-red"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path><path d="M12 8.5v3M10.5 10h3" stroke-width="1.5"></path></svg>
+        </div>
+        <div class="hp-bar-track">
+          <div class="hp-bar-fill" id="hp-fill"></div>
+        </div>
+        <div class="hp-bar-text"><span id="hp-current">100</span> / <span id="hp-max">100</span> HP</div>
+      </div>
+
+      <!-- Active Items list (Weapons & Passives) -->
+      <div class="hud-active-items" id="hud-active-items"></div>
+    </div>
+
+    <!-- 2. START SCREEN / MAIN MENU -->
+    <div id="start-screen" class="overlay active">
+      <div class="glass-panel main-menu">
+        <div id="game-logo-container">
+          <!-- Svg Logo will be rendered here dynamically or statically -->
+          <svg viewBox="0 0 400 150" class="svg-logo" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="neon-blue-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f0ff" />
+                <stop offset="100%" stop-color="#0072ff" />
+              </linearGradient>
+              <linearGradient id="neon-pink-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff00aa" />
+                <stop offset="100%" stop-color="#ff0055" />
+              </linearGradient>
+              <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="8" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <g stroke="#ff00aa" stroke-opacity="0.15" stroke-width="1.5">
+              <path d="M 0,90 H 400 M 0,110 H 400 M 0,125 H 400 M 0,135 H 400" />
+              <path d="M 200,70 L 0,140 M 200,70 L 80,140 M 200,70 L 160,140 M 200,70 L 240,140 M 200,70 L 320,140 M 200,70 L 400,140" />
+            </g>
+            <text x="50%" y="65" font-family="'Orbitron', sans-serif" font-weight="900" font-size="54" fill="url(#neon-blue-grad)" text-anchor="middle" letter-spacing="12" filter="url(#neon-glow)">NEON</text>
+            <text x="50%" y="120" font-family="'Orbitron', sans-serif" font-weight="900" font-size="44" fill="url(#neon-pink-grad)" text-anchor="middle" letter-spacing="4" filter="url(#neon-glow)">SURVIVORS</text>
+          </svg>
+        </div>
+        <p class="game-subtitle">Retro-Synthwave Horde Survival</p>
+
+        <div class="high-score-board">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon neon-yellow" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path><path d="M12 2a6 6 0 0 1 6 6v5a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"></path></svg>최다 처치 기록: <span id="menu-highscore" class="neon-yellow">0</span>
+        </div>
+
+        <div class="controls-guide">
+          <h3>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon neon-green" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;"><rect x="2" y="4" width="20" height="16" rx="3"></rect><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M7 16h10"></path></svg>조작 방법
+          </h3>
+          <div class="guide-grid">
+            <div class="guide-row">
+              <span class="key">W</span>
+              <span class="key">A</span>
+              <span class="key">S</span>
+              <span class="key">D</span>
+              <span class="action">이동 (또는 방향키)</span>
+            </div>
+            <div class="guide-row">
+              <span class="mouse-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon neon-blue" style="width:16px;height:16px;vertical-align:middle;"><rect x="5" y="2" width="14" height="20" rx="7"></rect><path d="M12 2v6M9 8h6"></path><circle cx="12" cy="14" r="2" fill="currentColor" fill-opacity="0.3"></circle></svg>
+              </span>
+              <span class="action">무기 자동 조준 &amp; 발사</span>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="menu-button-group" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; width: 100%;">
+          <button id="btn-start" class="btn btn-primary glow-btn">게임 시작</button>
+          <div class="menu-row-buttons" style="display: flex; gap: 1rem; width: 100%;">
+            <button id="btn-shop-trigger" class="btn btn-secondary" style="flex: 1;">영구 강화 상점</button>
+            <button id="btn-options-trigger" class="btn btn-secondary" style="flex: 1;">옵션 설정</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2b. CHARACTER SELECT SCREEN -->
+    <div id="char-select-screen" class="overlay hidden">
+      <div class="glass-panel main-menu character-select-panel" style="max-width: 900px; width: 90%;">
+        <h2 class="menu-title neon-blue">CHOOSE YOUR SURVIVOR</h2>
+        <p class="menu-subtitle">출격할 기체를 선택하고 특성 회로를 활성화하십시오.</p>
+        
+        <div class="character-grid" style="display: flex; gap: 1.5rem; width: 100%; margin: 2rem 0; flex-wrap: wrap; justify-content: center;">
+          <!-- Character Card 1: Volt -->
+          <div class="glass-panel character-card active" data-char="volt" style="flex: 1; min-width: 240px; max-width: 270px; padding: 1.8rem; cursor: pointer; border: 1px solid hsla(var(--neon-blue), 0.3);">
+            <div class="char-icon" style="color: hsl(var(--neon-blue)); font-size: 2rem; margin-bottom: 1rem; display: flex; justify-content: center;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="svg-icon-large"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor" fill-opacity="0.1"></polygon><circle cx="12" cy="11" r="9" stroke-width="1" stroke-dasharray="2 2" stroke-opacity="0.5"></circle></svg>
+            </div>
+            <h3 class="char-name neon-blue" style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; margin-bottom: 0.8rem;">Volt (볼트)</h3>
+            <p class="char-weapon-info" style="font-size: 0.8rem; color: hsl(var(--text-secondary)); margin-bottom: 1rem;">시작 무기: <strong>플라즈마 볼트</strong></p>
+            <div class="char-stats" style="display: flex; flex-direction: column; gap: 0.4rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.8rem; margin-bottom: 1rem; font-size: 0.85rem;">
+              <div class="char-stat-row" style="display: flex; justify-content: space-between;"><span>이동 속도</span><span class="neon-green">+20%</span></div>
+              <div class="char-stat-row" style="display: flex; justify-content: space-between;"><span>최대 체력</span><span class="neon-red">-15%</span></div>
+            </div>
+            <p class="char-passive-desc" style="font-size: 0.75rem; line-height: 1.4; color: hsl(var(--text-secondary)); text-align: left;">레벨업 시 5초간 이동 속도가 추가로 +10% 가속되는 오버드라이브 회로를 가집니다.</p>
+          </div>
+
+          <!-- Character Card 2: Cyber Shield -->
+          <div class="glass-panel character-card" data-char="shield" style="flex: 1; min-width: 240px; max-width: 270px; padding: 1.8rem; cursor: pointer; border: 1px solid rgba(255,255,255,0.08);">
+            <div class="char-icon" style="color: hsl(var(--neon-pink)); font-size: 2rem; margin-bottom: 1rem; display: flex; justify-content: center;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="svg-icon-large"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="currentColor" fill-opacity="0.1"></path><circle cx="12" cy="12" r="4" stroke-width="1.5"></circle></svg>
+            </div>
+            <h3 class="char-name neon-pink" style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; margin-bottom: 0.8rem;">Guardian (가디언)</h3>
+            <p class="char-weapon-info" style="font-size: 0.8rem; color: hsl(var(--text-secondary)); margin-bottom: 1rem;">시작 무기: <strong>오비탈 쉴드</strong></p>
+            <div class="char-stats" style="display: flex; flex-direction: column; gap: 0.4rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.8rem; margin-bottom: 1rem; font-size: 0.85rem;">
+              <div class="char-stat-row" style="display: flex; justify-content: space-between;"><span>최대 체력</span><span class="neon-green">+20%</span></div>
+              <div class="char-stat-row" style="display: flex; justify-content: space-between;"><span>기본 방어</span><span class="neon-green">+2.0</span></div>
+              <div class="char-stat-row" style="display: flex; justify-content: space-between;"><span>이동 속도</span><span class="neon-red">-10%</span></div>
+            </div>
+            <p class="char-passive-desc" style="font-size: 0.75rem; line-height: 1.4; color: hsl(var(--text-secondary)); text-align: left;">체력이 20% 이하로 떨어지면 3초 동안 절대 무적 베리어가 작동합니다 (쿨다운 60초).</p>
+          </div>
+
+          <!-- Character Card 3: Spectrum Glitch -->
+          <div class="glass-panel character-card" data-char="glitch" style="flex: 1; min-width: 240px; max-width: 270px; padding: 1.8rem; cursor: pointer; border: 1px solid rgba(255,255,255,0.08);">
+            <div class="char-icon" style="color: hsl(var(--neon-green)); font-size: 2rem; margin-bottom: 1rem; display: flex; justify-content: center;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="svg-icon-large"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 8.58"></path><polygon points="13 11 9 17 12 17 11 23 15 17 12 17 13 11" fill="currentColor" fill-opacity="0.2"></polygon></svg>
+            </div>
+            <h3 class="char-name neon-green" style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; margin-bottom: 0.8rem;">Glitch (글리치)</h3>
+            <p class="char-weapon-info" style="font-size: 0.8rem; color: hsl(var(--text-secondary)); margin-bottom: 1rem;">시작 무기: <strong>라이트닝 로드</strong></p>
+            <div class="char-stats" style="display: flex; flex-direction: column; gap: 0.4rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.8rem; margin-bottom: 1rem; font-size: 0.85rem;">
+              <div class="char-stat-row" style="display: flex; justify-content: space-between;"><span>공격력 배율</span><span class="neon-green">+15%</span></div>
+              <div class="char-stat-row" style="display: flex; justify-content: space-between;"><span>수집 범위</span><span class="neon-green">+15%</span></div>
+            </div>
+            <p class="char-passive-desc" style="font-size: 0.75rem; line-height: 1.4; color: hsl(var(--text-secondary)); text-align: left;">적 처치 시 낮은 확률로 해당 자리에 2.5배 강력한 무작위 원소 불꽃 폭발이 일어납니다.</p>
+          </div>
+        </div>
+
+        <div class="char-select-actions" style="display: flex; gap: 1.5rem; justify-content: center; width: 100%; margin-top: 1rem;">
+          <button id="btn-char-back" class="btn btn-secondary" style="width: 150px;">뒤로가기</button>
+          <button id="btn-char-confirm" class="btn btn-primary glow-btn" style="width: 180px;">전투 출격</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2c. UPGRADES SHOP SCREEN -->
+    <div id="shop-screen" class="overlay hidden">
+      <div class="glass-panel main-menu shop-panel" style="max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <h2 class="menu-title neon-yellow">SYSTEM UPGRADE TERMINAL</h2>
+        <p class="menu-subtitle">적에게서 회수한 데이터 칩을 사용하여 기체를 영구 강화하십시오.</p>
+        
+        <div class="chips-counter-board" style="background: rgba(8, 8, 20, 0.7); padding: 0.8rem 2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: inline-block; margin-bottom: 2rem; font-size: 1.15rem; font-family: 'Orbitron', sans-serif;">
+          💾 소지한 데이터 칩: <span id="shop-chips-count" class="neon-yellow">0</span> 개
+        </div>
+
+        <div class="shop-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; width: 100%; margin-bottom: 2rem;">
+          <!-- Shop cards rendered dynamically by main.js (see SHOP_DEFS) -->
+        </div>
+
+        <div class="shop-actions" style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+          <button id="btn-shop-reset" class="btn btn-secondary" style="border-color: rgba(255,0,0,0.3); font-size: 0.8rem; padding: 0.6rem 1.2rem; background: rgba(255,0,85,0.05); color: #ff0055;">데이터 초기화</button>
+          <button id="btn-shop-back" class="btn btn-primary" style="width: 180px;">메인 메뉴로</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2d. SYSTEM OPTIONS SCREEN -->
+    <div id="options-screen" class="overlay hidden">
+      <div class="glass-panel main-menu options-panel" style="max-width: 500px; width: 90%;">
+        <h2 class="menu-title neon-blue">SYSTEM OPTIONS</h2>
+        <p class="menu-subtitle">시스템 환경 설정을 최적화하십시오.</p>
+        
+        <div class="options-container" style="display: flex; flex-direction: column; gap: 1.5rem; width: 100%; margin: 2rem 0; text-align: left;">
+          <div class="option-row" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <label class="option-label" style="font-size: 0.9rem; font-weight: 600; color: hsl(var(--text-secondary));">배경음 설정 (BGM)</label>
+            <div class="slider-container" style="display: flex; align-items: center; gap: 1rem; width: 100%;">
+              <input type="range" id="slider-bgm" min="0" max="100" value="50" class="option-slider" style="flex: 1; height: 6px; border-radius: 3px; outline: none; background: rgba(255,255,255,0.1); accent-color: hsl(var(--neon-blue));">
+              <span id="label-bgm" class="slider-value" style="width: 45px; font-family: 'Orbitron', sans-serif; text-align: right; font-size: 0.85rem; color: white;">50%</span>
+            </div>
+          </div>
+
+          <div class="option-row" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <label class="option-label" style="font-size: 0.9rem; font-weight: 600; color: hsl(var(--text-secondary));">효과음 설정 (SFX)</label>
+            <div class="slider-container" style="display: flex; align-items: center; gap: 1rem; width: 100%;">
+              <input type="range" id="slider-sfx" min="0" max="100" value="70" class="option-slider" style="flex: 1; height: 6px; border-radius: 3px; outline: none; background: rgba(255,255,255,0.1); accent-color: hsl(var(--neon-pink));">
+              <span id="label-sfx" class="slider-value" style="width: 45px; font-family: 'Orbitron', sans-serif; text-align: right; font-size: 0.85rem; color: white;">70%</span>
+            </div>
+          </div>
+
+          <div class="option-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+            <label class="option-label" style="font-size: 0.9rem; font-weight: 600; color: hsl(var(--text-secondary));">복고풍 CRT 스캔라인</label>
+            <label class="switch-container" style="position: relative; display: inline-block; width: 50px; height: 26px;">
+              <input type="checkbox" id="check-crt" checked style="opacity: 0; width: 0; height: 0;">
+              <span class="switch-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .3s; border-radius: 34px; border: 1px solid rgba(255,255,255,0.08);"></span>
+            </label>
+          </div>
+        </div>
+
+        <button id="btn-options-back" class="btn btn-primary glow-btn" style="margin-top: 1rem; width: 100%;">설정 저장 및 뒤로가기</button>
+      </div>
+    </div>
+
+    <!-- 3. LEVEL UP UPGRADE SELECT SCREEN -->
+    <div id="upgrade-screen" class="overlay hidden">
+      <div class="upgrade-container">
+        <h2 class="upgrade-title neon-green">LEVEL UP!</h2>
+        <p class="upgrade-subtitle">원하는 업그레이드를 선택하세요</p>
+        
+        <div class="upgrade-cards" id="upgrade-cards-container">
+          <!-- Dynamically populated cards will go here dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. GAME OVER SCREEN -->
+    <div id="gameover-screen" class="overlay hidden">
+      <div class="glass-panel gameover-panel" style="max-height: 90vh; overflow-y: auto;">
+        <h2 class="gameover-title neon-red">SYSTEM TERMINATED</h2>
+        <p class="gameover-subtitle">플레이어 회로가 과부화되어 파괴되었습니다.</p>
+
+        <div class="stats-summary">
+          <div class="summary-row">
+            <span>생존 시간</span>
+            <span id="summary-time" class="neon-blue">00:00</span>
+          </div>
+          <div class="summary-row">
+            <span>처치한 적</span>
+            <span id="summary-kills" class="neon-red">0</span>
+          </div>
+          <div class="summary-row">
+            <span>최종 레벨</span>
+            <span id="summary-level" class="neon-green">1</span>
+          </div>
+          <div class="summary-row">
+            <span>획득한 데이터 칩</span>
+            <span id="summary-chips" class="neon-yellow">0</span>
+          </div>
+          <div class="summary-row">
+            <span>최종 점수</span>
+            <span id="summary-score" class="neon-blue">0</span>
+          </div>
+        </div>
+
+        <div class="dps-summary-panel" style="margin: 1.5rem 0; text-align: left; background: rgba(8, 8, 20, 0.6); padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); width: 100%;">
+          <h3 class="dps-title neon-blue" style="font-family: 'Orbitron', sans-serif; font-size: 0.95rem; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="svg-icon" style="width: 16px; height: 16px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>무기별 데이터 출력 (DPS)
+          </h3>
+          <div id="summary-dps-list" style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <button id="btn-restart" class="btn btn-primary glow-btn-red" style="width: 100%;">시스템 재기동</button>
+      </div>
+    </div>
+
+    <!-- 5. PAUSE MENU (Esc) -->
+    <div id="pause-screen" class="overlay hidden">
+      <div class="glass-panel pause-panel">
+        <h2 class="pause-title neon-blue">PAUSED</h2>
+        <p class="pause-subtitle">시스템 일시 중지됨</p>
+        <button id="btn-resume" class="btn btn-primary">계속하기 (ESC)</button>
+        <button id="btn-quit" class="btn btn-secondary">메인 메뉴로</button>
+      </div>
+    </div>
+
+    <!-- Retro CRT Filter overlay -->
+    <div class="crt-overlay" id="crt-scanlines"></div>
+  </div>
+
+  <!-- Entry Script -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
