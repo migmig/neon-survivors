@@ -28,6 +28,7 @@ import { HazardManager, activeHazards } from './systems/Hazard.js';
 import { BossController, activeBosses, spawnBoss, updateBosses } from './systems/Boss.js';
 import { checkEvolution } from './systems/Upgrade.js';
 import { BOSS_SCHEDULE, BOSS_DEFS } from './data/bosses.js';
+import { EVOLUTION_RULES } from './data/evolutions.js';
 import { SvgIcons } from './assets/icons.js';
 
 // --- HTML DOM References ---
@@ -598,17 +599,21 @@ function startNewGame(charType = 'volt') {
   // Instantiate Player
   player = new Player(MAP_WIDTH / 2, MAP_HEIGHT / 2, charType);
   lastHpSeen = player.maxHp;
-  
-  // Equip chosen starter weapon
-  if (charType === 'volt') {
-    player.weapons.push(new PlasmaBolt(player));
-  } else if (charType === 'shield') {
-    player.weapons.push(new OrbitingShield(player));
-  } else if (charType === 'glitch') {
-    player.weapons.push(new LightningStrike(player));
-  } else {
-    player.weapons.push(new PlasmaBolt(player));
-  }
+
+  // Equip a starter weapon from a character-themed pool. Each run picks a
+  // different opener so the early-game variety doesn't feel scripted.
+  const STARTER_POOLS = {
+    volt:   [PlasmaBolt, CyberDrone, PrismaticBeam],
+    shield: [OrbitingShield, RetroSynthWave, NeonFireTrail],
+    glitch: [LightningStrike, NaniteInfector, QuantumVoidRift]
+  };
+  const pool = STARTER_POOLS[charType] || STARTER_POOLS.volt;
+  const WeaponClass = pool[Math.floor(Math.random() * pool.length)];
+  const starter = new WeaponClass(player);
+  player.weapons.push(starter);
+
+  // Floating notification so the player can see which opener they got.
+  ParticleSystem.spawnDamageText(player.x, player.y - 60, `▶ ${starter.name}`, '#00f0ff');
 
   updateHud();
 }
@@ -1661,6 +1666,12 @@ btnQuit.addEventListener('click', quitToMenu);
 
 // Pause Listener (ESC key)
 window.addEventListener('keydown', (e) => {
+  // Inventory panel intercepts Escape first so it can close cleanly.
+  if (e.key === 'Escape' && inventoryVisible) {
+    e.preventDefault();
+    toggleInventory();
+    return;
+  }
   if (e.key === 'Escape' || e.key === 'p') {
     if (currentGameState === 'PLAYING') {
       currentGameState = 'PAUSED';
@@ -1675,6 +1686,177 @@ window.addEventListener('keydown', (e) => {
       currentGameState = 'PLAYING';
       Sound.playClick();
     }
+  }
+});
+
+// ----------------------------------------------------
+// INVENTORY PANEL (Tab to toggle)
+// ----------------------------------------------------
+let inventoryPanel = null;
+let inventoryVisible = false;
+let inventoryRefreshTimer = null;
+
+function ensureInventoryPanel() {
+  if (inventoryPanel) return inventoryPanel;
+  inventoryPanel = document.createElement('div');
+  inventoryPanel.id = 'inventory-panel';
+  inventoryPanel.classList.add('hidden');
+  inventoryPanel.innerHTML = `
+    <div class="inv-panel-card">
+      <div class="inv-panel-header">
+        <span class="inv-title">📦 INVENTORY</span>
+        <span class="inv-hint">[ Tab ] / [ Esc ] 닫기</span>
+      </div>
+      <div class="inv-section">
+        <h4>🗡 WEAPONS</h4>
+        <ul id="inv-weapons"></ul>
+      </div>
+      <div class="inv-section">
+        <h4>✦ PASSIVES</h4>
+        <ul id="inv-passives"></ul>
+      </div>
+      <div class="inv-section">
+        <h4>💾 META EFFECTS</h4>
+        <ul id="inv-meta"></ul>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(inventoryPanel);
+  return inventoryPanel;
+}
+
+function getEvolutionStatus(weapon) {
+  for (const rule of EVOLUTION_RULES) {
+    if (rule.base !== weapon.id) continue;
+    const passiveLvl = (player && player.passives && player.passives[rule.passive]) || 0;
+    const canEvolve = weapon.level >= 5 && passiveLvl >= 1;
+    return { rule, canEvolve, passiveLvl };
+  }
+  return null;
+}
+
+function describeEvolutionLock(status, weapon) {
+  const needs = [];
+  if (weapon.level < 5) needs.push(`무기 Lv.5 (현재 ${weapon.level})`);
+  if (status.passiveLvl < 1) {
+    const info = UPGRADES_POOL.find(u => u.id === status.rule.passive);
+    needs.push(`${info ? info.name : status.rule.passive} 패시브 필요`);
+  }
+  return needs.join(' · ');
+}
+
+function renderInventory() {
+  ensureInventoryPanel();
+  if (!player) return;
+
+  // --- Weapons ---
+  const wEl = document.getElementById('inv-weapons');
+  wEl.innerHTML = '';
+  player.weapons.forEach(w => {
+    const upgradeInfo = UPGRADES_POOL.find(u => u.id === w.id);
+    const icon = upgradeInfo ? upgradeInfo.icon : '🗡';
+    const isEvo = !!(w.tags && w.tags.includes('evolution'));
+
+    const stats = [];
+    if (typeof w.damage === 'number' && w.damage > 0) stats.push(`DMG ${w.damage}`);
+    if (typeof w.cooldown === 'number' && w.cooldown > 0) stats.push(`CD ${w.cooldown.toFixed(2)}s`);
+    if (typeof w.count === 'number' && w.count > 1) stats.push(`×${w.count}`);
+    if (typeof w.pierce === 'number' && w.pierce > 1) stats.push(`PIERCE ${w.pierce}`);
+    if (typeof w.refractions === 'number') stats.push(`REFRACT ${w.refractions}`);
+    if (typeof w.range === 'number') stats.push(`RNG ${w.range}`);
+    if (typeof w.duration === 'number') stats.push(`DUR ${w.duration}s`);
+
+    const evoStatus = isEvo ? null : getEvolutionStatus(w);
+    let evoLine = '';
+    if (evoStatus) {
+      if (evoStatus.canEvolve) {
+        evoLine = `<div class="inv-evo ready">✅ EVOLVE READY → ${evoStatus.rule.evo}</div>`;
+      } else {
+        const lock = describeEvolutionLock(evoStatus, w);
+        evoLine = `<div class="inv-evo locked">⛔ 진화 잠김: ${lock} → ${evoStatus.rule.evo}</div>`;
+      }
+    } else if (isEvo) {
+      evoLine = `<div class="inv-evo ready">★ EVOLVED FORM</div>`;
+    }
+
+    const maxBadge = w.level >= w.maxLevel ? ' ★' : '';
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="inv-row">
+        <span class="inv-icon ${isEvo ? 'evo' : ''}">${icon}</span>
+        <span class="inv-name">${w.name}</span>
+        <span class="inv-level">Lv.${w.level}/${w.maxLevel}${maxBadge}</span>
+      </div>
+      ${stats.length ? `<div class="inv-stats">${stats.join(' · ')}</div>` : ''}
+      ${evoLine}
+    `;
+    wEl.appendChild(li);
+  });
+  if (wEl.children.length === 0) {
+    wEl.innerHTML = '<li class="inv-empty">- 무기 없음 -</li>';
+  }
+
+  // --- Passives ---
+  const pEl = document.getElementById('inv-passives');
+  pEl.innerHTML = '';
+  Object.keys(player.passives).forEach(id => {
+    const lvl = player.passives[id];
+    if (lvl <= 0) return;
+    const info = UPGRADES_POOL.find(u => u.id === id);
+    const icon = info ? info.icon : '✨';
+    const name = info ? info.name : id;
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="inv-row"><span class="inv-icon">${icon}</span><span class="inv-name">${name}</span><span class="inv-level">Lv.${lvl}</span></div>`;
+    pEl.appendChild(li);
+  });
+  if (pEl.children.length === 0) {
+    pEl.innerHTML = '<li class="inv-empty">- 획득한 패시브 없음 -</li>';
+  }
+
+  // --- Meta effects ---
+  const mEl = document.getElementById('inv-meta');
+  mEl.innerHTML = '';
+  SHOP_DEFS.forEach(def => {
+    const lvl = (player.metaLevels && player.metaLevels[def.id]) || 0;
+    if (lvl <= 0) return;
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="inv-row"><span class="inv-icon">${def.icon}</span><span class="inv-name">${def.title}</span><span class="inv-level">Lv.${lvl}/${def.maxLvl}</span></div>`;
+    mEl.appendChild(li);
+  });
+  if (mEl.children.length === 0) {
+    mEl.innerHTML = '<li class="inv-empty">- 영구 강화 없음 -</li>';
+  }
+}
+
+function toggleInventory() {
+  ensureInventoryPanel();
+  // Block when there's no active run (menu, gameover).
+  if (!player || currentGameState === 'MENU' || currentGameState === 'GAMEOVER') return;
+
+  inventoryVisible = !inventoryVisible;
+  if (inventoryVisible) {
+    renderInventory();
+    inventoryPanel.classList.remove('hidden');
+    // Light refresh so a level-up while the panel is open is reflected.
+    inventoryRefreshTimer = setInterval(renderInventory, 400);
+  } else {
+    inventoryPanel.classList.add('hidden');
+    if (inventoryRefreshTimer) {
+      clearInterval(inventoryRefreshTimer);
+      inventoryRefreshTimer = null;
+    }
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  // Tab toggles the inventory regardless of focus; preventDefault stops the
+  // browser from shifting tab-focus when the panel opens/closes.
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    toggleInventory();
+  } else if ((e.key === 'i' || e.key === 'I') && !e.repeat) {
+    // Secondary toggle key for users without easy Tab access.
+    toggleInventory();
   }
 });
 

@@ -1111,3 +1111,136 @@ canvas {
 }
 
 
+
+/* ============================
+   INVENTORY PANEL (Tab toggle)
+   ============================ */
+#inventory-panel {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  pointer-events: none;
+}
+#inventory-panel.hidden { display: none; }
+
+#inventory-panel .inv-panel-card {
+  pointer-events: auto;
+  width: min(720px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: rgba(8, 6, 22, 0.86);
+  backdrop-filter: blur(10px);
+  border: 1.5px solid hsla(var(--neon-blue), 0.45);
+  border-radius: 14px;
+  box-shadow:
+    0 0 36px hsla(var(--neon-blue), 0.35),
+    0 18px 60px rgba(0, 0, 0, 0.65);
+  padding: 1.4rem 1.5rem 1.6rem;
+  font-family: 'Orbitron', sans-serif;
+  color: #e8f1ff;
+}
+
+#inventory-panel .inv-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.6rem;
+}
+#inventory-panel .inv-title {
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: hsl(var(--neon-blue));
+  text-shadow: 0 0 12px hsla(var(--neon-blue), 0.7);
+}
+#inventory-panel .inv-hint {
+  font-size: 0.7rem;
+  color: hsl(var(--text-secondary));
+  letter-spacing: 1px;
+}
+
+#inventory-panel .inv-section { margin-bottom: 1.1rem; }
+#inventory-panel .inv-section h4 {
+  font-size: 0.78rem;
+  letter-spacing: 2px;
+  color: hsl(var(--neon-yellow));
+  text-shadow: 0 0 8px hsla(var(--neon-yellow), 0.5);
+  margin: 0 0 0.55rem;
+}
+#inventory-panel .inv-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+#inventory-panel .inv-section li {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+}
+#inventory-panel .inv-section .inv-empty {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.06);
+  color: hsl(var(--text-secondary));
+  font-style: italic;
+}
+
+#inventory-panel .inv-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+#inventory-panel .inv-row .inv-icon { font-size: 1rem; }
+#inventory-panel .inv-row .inv-icon.evo {
+  text-shadow: 0 0 8px hsl(var(--neon-pink));
+  filter: drop-shadow(0 0 4px hsl(var(--neon-pink)));
+}
+#inventory-panel .inv-row .inv-name {
+  font-weight: 700;
+  color: #ffffff;
+}
+#inventory-panel .inv-row .inv-level {
+  font-size: 0.72rem;
+  color: hsl(var(--neon-blue));
+}
+#inventory-panel .inv-stats {
+  grid-column: 2 / 4;
+  font-size: 0.7rem;
+  color: hsl(var(--text-secondary));
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+#inventory-panel .inv-evo {
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+#inventory-panel .inv-evo.ready {
+  background: rgba(0, 255, 102, 0.12);
+  border: 1px solid hsla(var(--neon-green), 0.5);
+  color: hsl(var(--neon-green));
+  text-shadow: 0 0 6px hsla(var(--neon-green), 0.6);
+  animation: inv-ready-pulse 1.2s ease-in-out infinite;
+}
+#inventory-panel .inv-evo.locked {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: hsl(var(--text-secondary));
+}
+@keyframes inv-ready-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsla(var(--neon-green), 0); }
+  50%      { box-shadow: 0 0 14px 2px hsla(var(--neon-green), 0.55); }
+}
